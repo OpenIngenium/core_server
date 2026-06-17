@@ -218,16 +218,18 @@ exports.update_version_status = async function(args, res, next, headers, jwt) {
   let version = args['version']['value'] == undefined ? null : args['version']['value']
   let version_status_input = args['version_status_input']['value'] == undefined ? null : args['version_status_input']['value']
   
+  const scope_names = jwt.scopes.map(scope => scope.hasOwnProperty('scope') ? scope.scope : scope);
+
   if (version_status_input.action === 'APPROVE' || version_status_input.action === 'UNAPPROVE') {
-    if (!jwt.scopes.includes('test_lead')) {
+    if (!scope_names.includes('test_lead')) {
       res.status(403).json({message: 'User does not have test_lead permission'});
       return;
     }
   } else if (version_status_input.action === 'RELEASE' || version_status_input.action === 'UNRELEASE') {
-    if (!jwt.scopes.includes('imcm')) {
+    if (!scope_names.includes('imcm')) {
       res.status(403).json({message: 'User does not have imcm permission'});
       return;
-    }    
+    }
   }
   
   try {

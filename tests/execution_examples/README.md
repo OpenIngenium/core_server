@@ -17,11 +17,11 @@ It is based on an execution on Ingenium R3.1 and the data was modified according
 
 First you need to have Core and Archive service running. If you are using the single node deployment, start Core and its dependencies.
 
-https://github.com/OpenIngenium/ingenium-dep/tree/devel/compose_single_node
+https://github.jpl.nasa.gov/Ingenium/ingenium-dep/tree/devel/compose_single_node
 
 Set the "test_conductor" of the dummy execution. Be default, "hongmank" will be used as the test conductor.
 Since the execution will be owned by the default user, you may not be able to continue its execution.
-You can set the test conductor as yourself in [tests/config.py](https://github.com/OpenIngenium/core_server/blob/devel/tests/config.py#L29)
+You can set the test conductor as yourself in [tests/config.py](https://github.jpl.nasa.gov/Ingenium/core_server/blob/devel/tests/config.py#L29)
 
 To run the script.
 

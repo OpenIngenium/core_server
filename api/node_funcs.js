@@ -17,6 +17,7 @@ var targz = require("targz");
 var recursive_readdir = require("recursive-readdir");
 var archiveLocation = process.env.ARCHIVE ? process.env.ARCHIVE : 'http://localhost:8010/api/v5';
 var executionLocation = process.env.EXECUTION ? process.env.EXECUTION : 'http://localhost:9999/api/v4';
+var dictionaryLocation = process.env.DICTIONARY ? process.env.DICTIONARY : 'http://localhost:5000/api/v4';
 var uuid = require('node-uuid');
 const axios = require('axios');
 var jwt = require('jsonwebtoken');
@@ -1491,6 +1492,81 @@ var getAllSteps  = async function(execution_id, procedure_id, params, key) {
   }
 }
 
+var enrichWithDictionaryConsistency = async function(elems, key) {
+  log.info(`enrichWithDictionaryConsistency: called with ${elems.length} elements`);
+
+  // Pull script_id / spec_hash from execution_user_input (execution context) or authoring_user_input (procedure context)
+  const getScriptInfo = (elem) => {
+    const input = (elem.execution_user_input && elem.execution_user_input.script_id)
+      ? elem.execution_user_input
+      : (elem.authoring_user_input && elem.authoring_user_input.script_id)
+        ? elem.authoring_user_input
+        : null;
+    return input ? {script_id: input.script_id, spec_hash: input.spec_hash} : null;
+  };
+
+  // Single pass: cache script info per element and collect unique script_ids
+  const infoByElem = new WeakMap();
+  const scriptIdSet = new Set();
+  for (const elem of elems) {
+    if (elem.step_type !== 'CUSTOM_SCRIPT') continue;
+    const info = getScriptInfo(elem);
+    log.info(`enrichWithDictionaryConsistency: extracted info=${JSON.stringify(info)} from elem_id=${elem.elem_id || elem.element_id || elem.id}`);
+    if (!info) continue;
+    infoByElem.set(elem, info);
+    scriptIdSet.add(info.script_id);
+  }
+
+  if (scriptIdSet.size === 0) {
+    log.info('enrichWithDictionaryConsistency: no CUSTOM_SCRIPT steps with script_id, skipping');
+    return elems;
+  }
+  const scriptIds = [...scriptIdSet];
+
+  log.info(`enrichWithDictionaryConsistency: checking ${scriptIds.length} unique script_ids at ${dictionaryLocation}`);
+
+  try {
+    const authHeaders = {headers: {'Authorization': key}};
+    const [paletteRes, customScriptRes] = await Promise.all([
+      axios.post(`${dictionaryLocation}/step_palette/custom/bulk_query`, scriptIds, authHeaders),
+      axios.post(`${dictionaryLocation}/custom_scripts/bulk_query`, scriptIds, authHeaders)
+    ]);
+
+    log.info(`enrichWithDictionaryConsistency: palette=${paletteRes.data.length}, custom_scripts=${customScriptRes.data.length}`);
+
+    const inPalette = new Set(paletteRes.data.map(p => p.step_id));
+    const dictSpecHashByScriptId = new Map(customScriptRes.data.map(s => [s.script_id, s.spec_hash]));
+    log.info(`enrichWithDictionaryConsistency: inPalette=${JSON.stringify(Array.from(inPalette))}, dictSpecHashByScriptId=${JSON.stringify(Array.from(dictSpecHashByScriptId))}`);
+
+    return elems.map(elem => {
+      const info = infoByElem.get(elem);
+      if (!info) return elem;
+
+      log.info(`enrichWithDictionaryConsistency: processing info=${JSON.stringify(info)}`);
+      const dictSpecHash = dictSpecHashByScriptId.get(info.script_id);
+      log.info(`enrichWithDictionaryConsistency: lookup script_id=${info.script_id} dictSpecHash=${dictSpecHash} hasKey=${dictSpecHashByScriptId.has(info.script_id)}`);
+      let consistency_flag;
+      if (!info.spec_hash) {
+        consistency_flag = 'LEGACY';
+      } else if (!dictSpecHashByScriptId.has(info.script_id)) {
+        consistency_flag = 'DELETED';
+      } else if (info.step_display_name && !inPalette.has(info.script_id)) {
+        consistency_flag = 'MISSING_IN_PALLETTE';
+      } else if (info.spec_hash && dictSpecHash && info.spec_hash !== dictSpecHash) {
+        consistency_flag = 'SPEC_HASH_MISMATCHED';
+      } else {
+        consistency_flag = 'CONSISTENT';
+      }
+
+      log.info(`enrichWithDictionaryConsistency: script_id=${info.script_id} flag=${consistency_flag}`);
+      return Object.assign({}, elem, {consistency_flag});
+    });
+  } catch (err) {
+    log.error(`enrichWithDictionaryConsistency: error calling dictionary service: ${err.message || err}`);
+    return elems;
+  }
+}
+
 var getExecutionElements  = async function(execution_id, elem_type, step_type, offset, limit, sort, description, 
   all_elements, comment_filter, ar_comment_filter, dr_comment_filter, key) {
   let params = {};
@@ -1511,7 +1587,9 @@ var getExecutionElements  = async function(execution_id, elem_type, step_type, o
     let response = await axios.get(url, {params: params, headers: {'Authorization': key}});
     let total_count = response['headers']['x-total-count'] ? response['headers']['x-total-count'] : 0;
 
-    return {'elems': response.data, 'total_count': total_count};
+    let elems = await enrichWithDictionaryConsistency(response.data, key);
+
+    return {'elems': elems, 'total_count': total_count};
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
   }
@@ -1539,8 +1617,11 @@ var getProcedureElements  = async function(procedure_id, elem_type, step_type, o
   try {
     const url = `${archiveLocation}/procedures/${procedure_id}/elements`;
     let response = await axios.get(url, {params: params, headers: {'Authorization': key}});
+
+    let elems = await enrichWithDictionaryConsistency(response.data, key);
+    
     let total_count = response['headers']['x-total-count'] ? response['headers']['x-total-count'] : 0;
-    return {'elems': response.data, 'total_count': total_count};
+    return {'elems': elems, 'total_count': total_count};
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
   }
@@ -1562,7 +1643,10 @@ var getVersionElements  = async function(procedure_id, version, elem_type, step_
     const url = `${archiveLocation}/procedures/${procedure_id}/versions/${version}/elements`;
     let response = await axios.get(url, {params: params, headers: {'Authorization': key}});
     let total_count = response['headers']['x-total-count'] ? response['headers']['x-total-count'] : 0;
-    return {'elems': response.data, 'total_count': total_count};
+
+    let elems = await enrichWithDictionaryConsistency(response.data, key);
+
+    return {'elems': elems, 'total_count': total_count};
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
   }
@@ -5002,6 +5086,8 @@ async function refresh_procedure_element_(elem, elem_map, vi_map, script_map, ke
     let changed_fields = [];
     // flag for change in specification of custom script
     let spec_changed = false;
+    // flag for legacy custom script
+    let legacy_cs = false;
     if (elem.authoring_user_input && script_map) {
       let input = elem.authoring_user_input;
       log.debug(`script_path: ${input.script_path}`);
@@ -5013,6 +5099,7 @@ async function refresh_procedure_element_(elem, elem_map, vi_map, script_map, ke
         // make a copy of script definition in catalog since it can be changed 
         // to update the step input. This handles the case where the same script is used by more than one script.
         const script_ref = _.cloneDeep(script_ref0);
+        
         //// check meta data
         if (input.script_name !== script_ref.script_name) {
           changed_fields.push({
@@ -5042,6 +5129,22 @@ async function refresh_procedure_element_(elem, elem_map, vi_map, script_map, ke
             new_value: script_ref.hash
           });
           input.hash = script_ref.hash;
+        }
+
+        if (input.spec_hash === undefined || input.spec_hash === null || input.spec_hash === '') {
+          legacy_cs = true;
+          spec_changed = true;
+        }
+
+        if (input.spec_hash !== script_ref.spec_hash) {
+          changed_fields.push({
+            field_name: 'spec_hash',
+            change_type: 'MODIFIED',
+            previous_value: input.spec_hash,
+            new_value: script_ref.spec_hash
+          });
+          input.spec_hash = script_ref.spec_hash;
+          spec_changed = true;
         }
   
         // Note that old custom script steps do not have description field set.
@@ -5163,22 +5266,29 @@ async function refresh_procedure_element_(elem, elem_map, vi_map, script_map, ke
           });
         }
 
-        if (spec_changed) {
-          // Note: do not change CS step if its spec has been changed.
-          // In this case, the user should update CS step by re-selecting it in UI
-          // and verify the inputs are correct. I kept the logic above that updates
-          // catalog_inputs and catalog_entries in case we want to do it automatically
-          // in the future.
-
-          // input.inputs = catalog_inputs;
-          // input.entries = catalog_entries;
-          user_action_msg = 'Custom script specification was changed. Re-select the script in the step to get the latest specification and set input values as needed'; 
+        if (spec_changed && !legacy_cs) {
+          // Apply matched inputs and entries with preserved values
+          input.inputs = catalog_inputs;
+          input.entries = catalog_entries;
+          
+          // Apply layout, outputs, and output_array from catalog (new catalog is source of truth)
+          input.layout = script_ref.layout;
+          input.outputs = script_ref.outputs;
+          input.output_array = script_ref.output_array;
+          
+          // Mark element as consistent after auto-update
+          elem.consistency_flag = 'CONSISTENT';
+          
           changed_fields.push({
             field_name: 'specification',
             change_type: 'MODIFIED',
             previous_value: '',
             new_value: ''
           });
+        }
+
+        if (legacy_cs){
+          user_action_msg =  'This is a legacy CS step and we can not validate';
         }
 
         if (changed_fields.length > 0) {

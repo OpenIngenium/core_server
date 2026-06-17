@@ -842,7 +842,7 @@ var step_dict = {
               "type": "INT"
             }
           ]          
-        } 
+        }
       },    
       "execution_user_input" : {
         "script_name": "",
@@ -920,7 +920,7 @@ var step_dict = {
               "type": "INT"
             }
           ]          
-        }      
+        }
       },
       "results": {
         "script_name": "",
@@ -1007,6 +1007,7 @@ var step_dict = {
             }
           ]          
         },
+        "output_summary": "",
         "custom_script_status": "PENDING",      
         "log_file_local_path": "",
         "log_file_url": ""

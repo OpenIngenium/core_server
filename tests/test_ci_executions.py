@@ -10626,7 +10626,10 @@ class ExecutionsTest(CoreTestBase):
         execution_url = shared_dict['host'] + '/executions/' + execution_id  
 
         execution_info = {
-            'mode': 'AUTO'
+            'mode': 'AUTO',
+            'pause_conditions': {
+                'on_manual_input': True
+            }
         }
 
         self.update_execution(execution_id, execution_info, code_expected=200)

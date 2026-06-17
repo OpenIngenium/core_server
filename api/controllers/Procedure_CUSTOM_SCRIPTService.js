@@ -1,5 +1,6 @@
 'use strict';
 var node_funcs = require('../node_funcs');
+var extend = require('extend');
 
 exports.create_procedure_custom_script_step = async function(args, res, next, headers) {
   /**
@@ -15,7 +16,29 @@ exports.create_procedure_custom_script_step = async function(args, res, next, he
   let step = args['step'] ? args['step']['value'] : null;
   let insert_after_id = args['insert_after_id'] ? args['insert_after_id']['value'] : '-1';   
   let level = args['level'] ? args['level']['value'] : 'SIBLING';
- 
+
+  let script_id = args['script_id'] ? args['script_id']['value'] : null;
+  let script_name = args['script_name'] ? args['script_name']['value'] : null;
+  let script_path = args['script_path'] ? args['script_path']['value'] : null;
+  let script_display_name = args['script_display_name'] ? args['script_display_name']['value'] : null;
+  let script_hash = args['script_hash'] ? args['script_hash']['value'] : null;
+  let script_spec_hash = args['script_spec_hash'] ? args['script_spec_hash']['value'] : null;
+
+  if (script_id || script_name || script_path || script_display_name || script_hash || script_spec_hash) {
+    const script_fields = {};
+    if (script_id) script_fields.script_id = script_id;
+    if (script_name) script_fields.script_name = script_name;
+    if (script_path) script_fields.script_path = script_path;
+    if (script_display_name) script_fields.script_display_name = script_display_name;
+    if (script_hash) script_fields.hash = script_hash;
+    if (script_spec_hash) script_fields.spec_hash = script_spec_hash;
+
+    if (step === null) {
+      step = {};
+    }
+    step.authoring_user_input = extend(true, {}, step.authoring_user_input || {}, script_fields);
+  }
+
   try {
     const data = await node_funcs.createArchiveElement(null, procedure_id, "STEP", "CUSTOM_SCRIPT", step, insert_after_id, level, key); 
     res.status(200).json(data);
