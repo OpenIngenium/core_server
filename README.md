@@ -30,8 +30,8 @@ JWT_SECRET=bigsecret
 
 ### Running Tests
 
-Python units_test based tests are available. To run the test, you need to have [archive](https://github.com/OpenIngenium/archive),
-[execution_server](https://github.com/OpenIngenium/execution_server) services. If authentication of Core is on, you also need the Ingenium auth server. Locations of the services are defined in "config.py" in "tests" folder.
+Python units_test based tests are available. To run the test, you need to have [archive](https://github.jpl.nasa.gov/Ingenium/archive),
+[execution_server](https://github.jpl.nasa.gov/Ingenium/execution_server), [execution_gateway](https://github.jpl.nasa.gov/Ingenium/execution_gateway) services. If authentication of Core is on, you also need the Ingenium auth server. Locations of the services are defined in "config.py" in "tests" folder.
 
 Tests will prompt for username and password. If authentication is turned off for Core, simply provide empty strings.
 

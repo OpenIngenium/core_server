@@ -48,6 +48,11 @@ app.use(timeout.handler(timeoutOptions));
 app.use(bodyParser.json({limit: "5mb"}));
 app.use(bodyParser.urlencoded({limit: "5mb", extended: true, parameterLimit:5000}));
 
+// Log all incoming requests
+app.use(function(req, res, next) {
+  log.info(`[REQUEST] ${req.method} ${req.url}`);
+  next();
+});
 
 // connect to execution monitor to publish events
 log.debug(`connecting to execution monitor: ${config.EXECUTION_MONITOR_URL}`);
@@ -282,16 +287,14 @@ swaggerTools.initializeMiddleware(swaggerDoc, function (middleware) {
           return cb(err);
         }
   
-        let scopes = decoded['scopes'];
+        const scopes = decoded['scopes'];
         req.jwt = decoded;
 
-        log.info(`scopes: ${JSON.stringify(scopes)}`);
         const scope_names = scopes.map(scope => scope.hasOwnProperty('scope') ? scope.scope : scope);
 
-        let intersection_scopes = _.intersection(scope_names, required_scopes);
-        log.info(`intersection_scopes: ${JSON.stringify(intersection_scopes)}`);
+        const intersection_scopes = _.intersection(scope_names, required_scopes);
 
-        if(intersection_scopes.length > 0) {
+        if (intersection_scopes.length > 0) {
           return cb(null);
         } else {
           req.res.status(403).json({'message': 'user does not have the permission'});
