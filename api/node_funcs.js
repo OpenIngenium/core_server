@@ -1232,7 +1232,11 @@ var updateExecutionElements = async function(execution_id, elems_input, key) {
 var updateProcedureElements = async function(procedure_id, elems_input, key) {
   try {
     const url = `${archiveLocation}/procedures/${procedure_id}/elements`;
-    let response = await axios.patch(url, elems_input, {headers: {'Authorization': key}});
+    let response = await axios.patch(url, elems_input, {
+      headers: {'Authorization': key},
+      maxContentLength: 500*1024*1024,
+      maxBodyLength: 500*1024*1024
+    });
     return response.data;
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
