@@ -45,8 +45,8 @@ app.use(timeout.handler(timeoutOptions));
 // Need to override the size limit of body payload of swagger middleware.
 // Needs to set before swagger middleware stuff.
 // See "https://stackoverflow.com/questions/19917401/error-request-entity-too-large"
-app.use(bodyParser.json({limit: "5mb"}));
-app.use(bodyParser.urlencoded({limit: "5mb", extended: true, parameterLimit:5000}));
+app.use(bodyParser.json({limit: "500mb"}));
+app.use(bodyParser.urlencoded({limit: "500mb", extended: true, parameterLimit:5000}));
 
 // Log all incoming requests
 app.use(function(req, res, next) {

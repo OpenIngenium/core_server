@@ -5094,6 +5094,7 @@ async function refresh_procedure_element_(elem, elem_map, vi_map, script_map, ke
 
       const script_ref0 = script_map[input.script_id];
       const item_name = input.script_path;
+      const item_id = input.script_id;
 
       if (script_ref0) {
         // make a copy of script definition in catalog since it can be changed 
@@ -5295,6 +5296,7 @@ async function refresh_procedure_element_(elem, elem_map, vi_map, script_map, ke
           changed_items.push({
             item_type: 'SCRIPT',
             item_name: item_name,
+            item_id: item_id,
             change_type: 'MODIFIED',
             changed_fields: changed_fields
           });

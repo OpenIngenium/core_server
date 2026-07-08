@@ -14695,6 +14695,9 @@ definitions:
       item_name:
         description: item name (VI name, step number, or script path)
         type: string
+      item_id:
+        description: item id (only for SCRIPT item_type)
+        type: string
       change_type:
         description: type of change
         type: string
