@@ -5300,7 +5300,7 @@ async function refresh_procedure_element_(elem, elem_map, vi_map, script_map, ke
           });
         }
       } else {
-        user_action_msg = `Custom script was not found. script_path: ${input.script_path}`;
+        user_action_msg = `Custom script was not found. script_path: ${input.script_path}, script_id: ${input.script_id}`;
       }
     }
   } else if (elem.elem_type == 'PROCEDURE_SECTION') {
