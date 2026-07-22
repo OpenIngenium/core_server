@@ -1267,7 +1267,12 @@ var modifyElement = async function(execution_id, elem_id, key) {
   try {
     const url = `${archiveLocation}/executions/${execution_id}/elements/${elem_id}/modify`;
     let response = await axios.post(url, {}, {headers: {'Authorization': key}});
-    return response.data;
+    const data = response.data;
+    if (data && data.elem) {
+      const enriched = await enrichWithDictionaryConsistency([data.elem], key);
+      data.elem = enriched[0];
+    }
+    return data;
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
   }  
@@ -1304,7 +1309,8 @@ var justifyElement = async function(execution_id, elem_id, justification_input, 
   try {
     const url = `${archiveLocation}/executions/${execution_id}/elements/${elem_id}`;
     let response = await axios.patch(url, elem_input, {headers: {'Authorization': key}});
-    return response.data;
+    const enriched = await enrichWithDictionaryConsistency([response.data], key);
+    return enriched[0];
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
   }
@@ -1351,7 +1357,7 @@ var justifyElements = async function(execution_id, elem_ids, justification_input
   try {
     const url = `${archiveLocation}/executions/${execution_id}/elements`;
     let response = await axios.patch(url, elems_input, {headers: {'Authorization': key}});
-    return response.data;
+    return await enrichWithDictionaryConsistency(response.data, key);
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
   }
@@ -1934,7 +1940,7 @@ var import_procedure_section = async function(execution_id, elem_id, key) {
   try {
     const url = `${archiveLocation}/executions/${execution_id}/procedure_sections/${elem_id}/import`;
     let response = await axios.post(url, {}, {headers: {'Authorization': key}});
-    return response.data;
+    return await enrichWithDictionaryConsistency(response.data, key);
   } catch (err) {
     return Promise.reject(transform_axios_error(err));
   }
