@@ -18,3 +18,5 @@ ve3
 tests/procedure_version.tar.gz
 tests/execution_examples/out*.txt
 tests/*.tar.gz
+coverage
+coverage/

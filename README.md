@@ -28,15 +28,35 @@ EXECUTION=http://localhost:9999/api/v4
 JWT_SECRET=bigsecret
 ```
 
-### Running Tests
+### Running Unit Tests
 
-Python units_test based tests are available. To run the test, you need to have [archive](https://github.jpl.nasa.gov/Ingenium/archive),
-[execution_server](https://github.jpl.nasa.gov/Ingenium/execution_server), [execution_gateway](https://github.jpl.nasa.gov/Ingenium/execution_gateway) services. If authentication of Core is on, you also need the Ingenium auth server. Locations of the services are defined in "config.py" in "tests" folder.
+Fast, isolated Jest unit tests live in `tests/unit/`. All external
+dependencies (ArangoDB, Redis, S3/Minio, HTTP clients) are mocked, so the suite
+performs no real I/O and can run anywhere.
 
-Tests will prompt for username and password. If authentication is turned off for Core, simply provide empty strings.
+Use the Node version pinned in `.nvmrc` (matches the Dockerfile):
 
 ```
-cd tests
-python executions_test.py
-python venues_test.py
+nvm use
+npm install
+npm run test:coverage
 ```
+
+Other scripts:
+
+```
+npm test           # run the unit suite
+npm run test:watch # watch mode
+```
+
+Coverage is enforced at 100% for the modules that have been migrated (see
+`coverageThreshold` in `jest.config.js`). `api/node_funcs.js` is a large legacy
+module whose migration is in progress; add newly covered modules to
+`collectCoverageFrom` / `coverageThreshold` as they are completed.
+
+### Legacy Python integration tests (retired)
+
+The former `tests/*.py` integration/e2e scripts required live `archive`,
+`execution_server`, and `execution_gateway` services and have been **retired**
+per the unit test migration plan. Their business logic is now covered directly
+by the Jest unit tests in `tests/unit/`.
